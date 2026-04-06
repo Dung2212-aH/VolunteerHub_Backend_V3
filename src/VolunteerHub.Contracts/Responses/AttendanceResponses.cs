@@ -1,0 +1,13 @@
+namespace VolunteerHub.Contracts.Responses;
+
+public class AttendanceRecordResponse
+{
+    public Guid Id { get; set; }
+    public Guid EventId { get; set; }
+    public Guid VolunteerProfileId { get; set; }
+    public string EventTitle { get; set; } = string.Empty;
+    public DateTime? CheckInAt { get; set; }
+    public DateTime? CheckOutAt { get; set; }
+    public string Status { get; set; } = string.Empty;
+    public double? ApprovedHours { get; set; }
+}
