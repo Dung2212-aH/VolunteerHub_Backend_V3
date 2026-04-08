@@ -113,4 +113,20 @@ public class EventsController : ControllerBase
 
         return Ok();
     }
+
+    [HttpPost("{id:guid}/complete")]
+    public async Task<IActionResult> CompleteEvent(Guid id, CancellationToken cancellationToken)
+    {
+        var organizerId = GetOrganizerId();
+        var result = await _eventService.CompleteEventAsync(organizerId, id, cancellationToken);
+
+        if (result.IsFailure)
+        {
+            return result.Error == VolunteerHub.Application.Common.Error.NotFound
+                ? NotFound(new { Error = result.Error })
+                : BadRequest(new { Error = result.Error });
+        }
+
+        return Ok();
+    }
 }

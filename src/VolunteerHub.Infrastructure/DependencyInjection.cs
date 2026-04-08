@@ -26,7 +26,7 @@ public static class DependencyInjection
             options.Password.RequireNonAlphanumeric = false;
             options.Password.RequiredLength = 8;
             options.User.RequireUniqueEmail = true;
-            options.SignIn.RequireConfirmedEmail = false;
+            options.SignIn.RequireConfirmedEmail = true;
         }).AddEntityFrameworkStores<AppDbContext>().AddDefaultTokenProviders();
 
         services.ConfigureApplicationCookie(options =>

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using VolunteerHub.Web.Infrastructure;
 using VolunteerHub.Application.Abstractions;
 using VolunteerHub.Contracts.Constants;
 using VolunteerHub.Contracts.Requests;
@@ -28,7 +29,7 @@ public class AdminSponsorModerationController : ControllerBase
     [HttpPost("{id:guid}/review")]
     public async Task<IActionResult> ReviewProfile(Guid id, [FromBody] ApproveSponsorProfileRequest request, CancellationToken cancellationToken)
     {
-        var result = await _sponsorManagementService.ReviewSponsorProfileAsync(id, request, cancellationToken);
+        var result = await _sponsorManagementService.ReviewSponsorProfileAsync(User.GetUserId(), id, request, cancellationToken);
         return result.IsSuccess ? Ok() : BadRequest(new { Error = result.Error });
     }
 }

@@ -7,8 +7,9 @@ namespace VolunteerHub.Application.Abstractions;
 public interface ISponsorManagementService
 {
     Task<Result<List<SponsorProfileResponse>>> GetPendingSponsorProfilesAsync(CancellationToken cancellationToken = default);
-    Task<Result> ReviewSponsorProfileAsync(Guid sponsorProfileId, ApproveSponsorProfileRequest request, CancellationToken cancellationToken = default);
+    Task<Result> ReviewSponsorProfileAsync(Guid adminUserId, Guid sponsorProfileId, ApproveSponsorProfileRequest request, CancellationToken cancellationToken = default);
     Task<Result<List<EventSponsorResponse>>> GetEventSponsorsAsync(Guid organizerUserId, Guid eventId, CancellationToken cancellationToken = default);
     Task<Result> ReviewEventSponsorAsync(Guid organizerUserId, Guid eventSponsorId, ApproveRejectEventSponsorRequest request, CancellationToken cancellationToken = default);
     Task<Result> RecordContributionAsync(Guid organizerUserId, RecordContributionRequest request, CancellationToken cancellationToken = default);
+    Task<Result> UpdateContributionStatusAsync(Guid organizerUserId, Guid contributionId, UpdateContributionStatusRequest request, CancellationToken cancellationToken = default);
 }

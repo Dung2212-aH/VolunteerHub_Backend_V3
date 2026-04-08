@@ -33,10 +33,17 @@ public class AttendanceService : IAttendanceService
         var now = DateTime.UtcNow;
         if (now < ev.StartAt.AddHours(-1) || now > ev.EndAt) return Result.Failure(new Error("Attendance.InvalidTimeWindow", "Check-in is not currently open for this event."));
 
-        if (!Enum.TryParse<CheckInMethod>(request.Method, true, out var methodType)) methodType = CheckInMethod.None;
-        if (methodType == CheckInMethod.GPS && request.Latitude.HasValue && request.Longitude.HasValue && ev.Latitude.HasValue && ev.Longitude.HasValue)
+        var methodResult = ParseMethod(request.Method, request.Latitude, request.Longitude, ev);
+        if (!methodResult.IsSuccess) return Result.Failure(methodResult.Error);
+
+        var methodType = methodResult.Value;
+        if (methodType == CheckInMethod.GPS)
         {
-            var dist = LocationHelper.CalculateDistanceKm(ev.Latitude.Value, ev.Longitude.Value, request.Latitude.Value, request.Longitude.Value);
+            var eventLatitude = ev.Latitude!.Value;
+            var eventLongitude = ev.Longitude!.Value;
+            var requestLatitude = request.Latitude!.Value;
+            var requestLongitude = request.Longitude!.Value;
+            var dist = LocationHelper.CalculateDistanceKm(eventLatitude, eventLongitude, requestLatitude, requestLongitude);
             if (dist > MaxGpsDistanceKm) return Result.Failure(new Error("Attendance.OutOfRange", "You are too far from the event location."));
         }
 
@@ -57,9 +64,15 @@ public class AttendanceService : IAttendanceService
     {
         var ev = await _eventRepository.GetDetailsByIdAsync(request.EventId, cancellationToken);
         if (ev == null) return Result.Failure(Error.NotFound);
+
+        var methodResult = ParseMethod(request.Method, request.Latitude, request.Longitude, ev);
+        if (!methodResult.IsSuccess) return Result.Failure(methodResult.Error);
+
         var record = await _attendanceRepository.GetRecordAsync(request.EventId, volunteerProfileId, cancellationToken);
         if (record == null || !record.CheckInAt.HasValue) return Result.Failure(new Error("Attendance.NoCheckIn", "You must check in first."));
-        if (!Enum.TryParse<CheckInMethod>(request.Method, true, out var methodType)) methodType = CheckInMethod.None;
+        if (record.Status != AttendanceStatus.CheckedIn) return Result.Failure(new Error("Attendance.InvalidStatus", "Attendance must be in CheckedIn status before check-out."));
+
+        var methodType = methodResult.Value;
         var now = DateTime.UtcNow;
         record.CheckOutAt = now;
         record.CheckOutMethod = methodType;
@@ -68,6 +81,27 @@ public class AttendanceService : IAttendanceService
         var duration = now - record.CheckInAt.Value;
         record.ApprovedHours = Math.Round(Math.Max(duration.TotalHours, 0), 2);
         record.Status = AttendanceStatus.CheckedOut;
+        _attendanceRepository.UpdateAttendanceRecord(record);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        return Result.Success();
+    }
+
+    public async Task<Result> ApproveAttendanceAsync(Guid organizerId, Guid eventId, Guid volunteerProfileId, CancellationToken cancellationToken = default)
+    {
+        var ev = await _eventRepository.GetDetailsByIdAsync(eventId, cancellationToken);
+        if (ev == null || ev.OrganizerId != organizerId) return Result.Failure(Error.NotFound);
+
+        var record = await _attendanceRepository.GetRecordAsync(eventId, volunteerProfileId, cancellationToken);
+        if (record == null) return Result.Failure(Error.NotFound);
+
+        if (record.Status == AttendanceStatus.Approved) return Result.Success();
+
+        if (record.Status != AttendanceStatus.CheckedOut || !record.CheckInAt.HasValue || !record.CheckOutAt.HasValue)
+            return Result.Failure(new Error("Attendance.InvalidStatus", "Only checked-out attendance records can be approved."));
+
+        record.Status = AttendanceStatus.Approved;
+        record.OverrideByUserId = organizerId;
+        record.OverrideAt = DateTime.UtcNow;
         _attendanceRepository.UpdateAttendanceRecord(record);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         return Result.Success();
@@ -108,6 +142,23 @@ public class AttendanceService : IAttendanceService
         if (ev == null || ev.OrganizerId != organizerId) return Result.Failure<List<AttendanceRecordResponse>>(Error.NotFound);
         var records = await _attendanceRepository.GetRecordsByEventAsync(eventId, cancellationToken);
         return Result.Success(records.Select(Map).ToList());
+    }
+
+    private static Result<CheckInMethod> ParseMethod(string method, double? latitude, double? longitude, Event ev)
+    {
+        if (!Enum.TryParse<CheckInMethod>(method, true, out var parsedMethod) || parsedMethod == CheckInMethod.None)
+            return Result.Failure<CheckInMethod>(new Error("Attendance.InvalidMethod", "Attendance method must be QR, GPS, or Manual."));
+
+        if (parsedMethod == CheckInMethod.GPS)
+        {
+            if (!latitude.HasValue || !longitude.HasValue)
+                return Result.Failure<CheckInMethod>(new Error("Attendance.MissingCoordinates", "GPS attendance requires latitude and longitude."));
+
+            if (!ev.Latitude.HasValue || !ev.Longitude.HasValue)
+                return Result.Failure<CheckInMethod>(new Error("Attendance.EventLocationMissing", "This event does not have GPS coordinates configured."));
+        }
+
+        return Result.Success(parsedMethod);
     }
 
     private static AttendanceRecordResponse Map(AttendanceRecord record) => new()

@@ -18,11 +18,16 @@ public class ApplicationApprovalRepository : IApplicationApprovalRepository
         => await _context.EventApplications.Include(a => a.Event).Where(a => a.VolunteerProfileId == volunteerProfileId).OrderByDescending(a => a.AppliedAt).ToListAsync(cancellationToken);
     public async Task<bool> HasActiveApplicationAsync(Guid eventId, Guid volunteerProfileId, CancellationToken cancellationToken = default)
     {
-        var active = new[] { ApplicationStatus.Pending, ApplicationStatus.UnderReview, ApplicationStatus.Waitlisted, ApplicationStatus.Approved };
+        var active = new[] { ApplicationStatus.Pending, ApplicationStatus.UnderReview, ApplicationStatus.Approved };
         return await _context.EventApplications.AnyAsync(a => a.EventId == eventId && a.VolunteerProfileId == volunteerProfileId && active.Contains(a.Status), cancellationToken);
     }
     public async Task<bool> IsApprovedAsync(Guid eventId, Guid volunteerProfileId, CancellationToken cancellationToken = default)
         => await _context.EventApplications.AnyAsync(a => a.EventId == eventId && a.VolunteerProfileId == volunteerProfileId && a.Status == ApplicationStatus.Approved, cancellationToken);
+    public async Task<int> GetActiveApplicationsCountAsync(Guid eventId, CancellationToken cancellationToken = default)
+    {
+        var active = new[] { ApplicationStatus.Pending, ApplicationStatus.UnderReview, ApplicationStatus.Approved };
+        return await _context.EventApplications.CountAsync(a => a.EventId == eventId && active.Contains(a.Status), cancellationToken);
+    }
     public async Task<int> GetApprovedApplicationsCountAsync(Guid eventId, CancellationToken cancellationToken = default)
         => await _context.EventApplications.CountAsync(a => a.EventId == eventId && a.Status == ApplicationStatus.Approved, cancellationToken);
 }

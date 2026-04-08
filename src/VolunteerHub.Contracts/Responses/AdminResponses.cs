@@ -13,6 +13,7 @@ public class SkillCatalogItemResponse
 public class AdminFeedbackReportResponse
 {
     public Guid Id { get; set; }
+    public Guid RatingId { get; set; }
     public Guid EventId { get; set; }
     public Guid ReporterUserId { get; set; }
     public Guid TargetUserId { get; set; }

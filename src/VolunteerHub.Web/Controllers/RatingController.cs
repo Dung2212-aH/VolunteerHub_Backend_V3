@@ -76,4 +76,13 @@ public class RatingController : ControllerBase
         var result = await _ratingService.GetRatingSummaryAsync(targetUserId, cancellationToken);
         return result.IsSuccess ? Ok(result.Value) : BadRequest(new { result.Error });
     }
+
+    [HttpPost("admin/{ratingId:guid}/moderate")]
+    [Authorize(Roles = AppRoles.Admin)]
+    public async Task<IActionResult> ModerateRating(Guid ratingId, [FromBody] ModerateRatingRequest request, CancellationToken cancellationToken)
+    {
+        var userId = User.GetUserId();
+        var result = await _ratingService.ModerateRatingAsync(userId, ratingId, request, cancellationToken);
+        return result.IsSuccess ? Ok(new { Message = "Rating moderated." }) : BadRequest(new { result.Error });
+    }
 }

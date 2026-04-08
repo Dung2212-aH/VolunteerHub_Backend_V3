@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using VolunteerHub.Application.Abstractions;
+using VolunteerHub.Contracts.Constants;
 using VolunteerHub.Contracts.Requests;
 
 namespace VolunteerHub.Web.Controllers;
@@ -27,6 +28,42 @@ public class AccountController : ControllerBase
             return BadRequest(new { Error = result.Error });
 
         return Ok(new { Message = "Register successfully." });
+    }
+
+    [AllowAnonymous]
+    [HttpPost("confirm-email")]
+    public async Task<IActionResult> ConfirmEmail([FromBody] ConfirmEmailRequest request, CancellationToken cancellationToken)
+    {
+        var result = await _accountService.ConfirmEmailAsync(request, cancellationToken);
+
+        if (!result.IsSuccess)
+            return BadRequest(new { Error = result.Error });
+
+        return Ok(new { Message = "Email confirmed successfully." });
+    }
+
+    [AllowAnonymous]
+    [HttpPost("forgot-password")]
+    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request, CancellationToken cancellationToken)
+    {
+        var result = await _accountService.ForgotPasswordAsync(request, cancellationToken);
+
+        if (!result.IsSuccess)
+            return BadRequest(new { Error = result.Error });
+
+        return Ok(new { Message = "If the account exists, a reset link has been sent." });
+    }
+
+    [AllowAnonymous]
+    [HttpPost("reset-password")]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request, CancellationToken cancellationToken)
+    {
+        var result = await _accountService.ResetPasswordAsync(request, cancellationToken);
+
+        if (!result.IsSuccess)
+            return BadRequest(new { Error = result.Error });
+
+        return Ok(new { Message = "Password reset successfully." });
     }
 
     [AllowAnonymous]
@@ -63,6 +100,38 @@ public class AccountController : ControllerBase
             return BadRequest(new { Error = result.Error });
 
         return Ok(new { Message = "Password changed successfully." });
+    }
+
+    [Authorize(Roles = AppRoles.Admin)]
+    [HttpPost("admin/users/{userId:guid}/lock")]
+    public async Task<IActionResult> LockUser(Guid userId, CancellationToken cancellationToken)
+    {
+        var adminUserIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(adminUserIdString) || !Guid.TryParse(adminUserIdString, out var adminUserId))
+            return Unauthorized();
+
+        var result = await _accountService.LockUserAsync(adminUserId, userId, cancellationToken);
+
+        if (!result.IsSuccess)
+            return BadRequest(new { Error = result.Error });
+
+        return Ok(new { Message = "User locked successfully." });
+    }
+
+    [Authorize(Roles = AppRoles.Admin)]
+    [HttpPost("admin/users/{userId:guid}/unlock")]
+    public async Task<IActionResult> UnlockUser(Guid userId, CancellationToken cancellationToken)
+    {
+        var adminUserIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(adminUserIdString) || !Guid.TryParse(adminUserIdString, out var adminUserId))
+            return Unauthorized();
+
+        var result = await _accountService.UnlockUserAsync(adminUserId, userId, cancellationToken);
+
+        if (!result.IsSuccess)
+            return BadRequest(new { Error = result.Error });
+
+        return Ok(new { Message = "User unlocked successfully." });
     }
 
     [Authorize]

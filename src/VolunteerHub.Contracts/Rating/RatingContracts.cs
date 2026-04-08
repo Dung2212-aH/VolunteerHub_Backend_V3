@@ -18,6 +18,7 @@ public class RatingResponse
     public string ToRole { get; set; } = string.Empty;
     public int Score { get; set; }
     public string? Comment { get; set; }
+    public string Status { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
 }
 
@@ -30,15 +31,22 @@ public class RatingSummaryResponse
 
 public class CreateFeedbackReportRequest
 {
+    public Guid RatingId { get; set; }
     public Guid EventId { get; set; }
-    public Guid TargetUserId { get; set; }
     public string Reason { get; set; } = string.Empty;
     public string? Description { get; set; }
+}
+
+public class ModerateRatingRequest
+{
+    public string Status { get; set; } = string.Empty;
+    public string? Reason { get; set; }
 }
 
 public class FeedbackReportResponse
 {
     public Guid Id { get; set; }
+    public Guid RatingId { get; set; }
     public Guid EventId { get; set; }
     public Guid ReporterUserId { get; set; }
     public Guid TargetUserId { get; set; }

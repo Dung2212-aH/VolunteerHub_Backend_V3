@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using VolunteerHub.Domain.Entities;
+using VolunteerHub.Domain.Enums;
 
 namespace VolunteerHub.Infrastructure.Persistence.Configurations;
 
@@ -16,9 +17,11 @@ public class RatingConfiguration : IEntityTypeConfiguration<Rating>
         builder.HasIndex(e => e.EventId);
         builder.HasIndex(e => e.FromUserId);
         builder.HasIndex(e => e.ToUserId);
+        builder.HasIndex(e => e.Status);
 
         builder.Property(e => e.Score).IsRequired();
         builder.Property(e => e.Comment).HasMaxLength(2000);
+        builder.Property(e => e.Status).HasConversion<int>().IsRequired();
     }
 }
 
@@ -28,6 +31,7 @@ public class FeedbackReportConfiguration : IEntityTypeConfiguration<FeedbackRepo
     {
         builder.HasKey(e => e.Id);
 
+        builder.HasIndex(e => e.RatingId);
         builder.HasIndex(e => e.EventId);
         builder.HasIndex(e => e.ReporterUserId);
         builder.HasIndex(e => e.TargetUserId);

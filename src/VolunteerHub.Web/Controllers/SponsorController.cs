@@ -83,4 +83,12 @@ public class SponsorController : ControllerBase
         var result = await _sponsorManagementService.RecordContributionAsync(User.GetUserId(), request, cancellationToken);
         return result.IsSuccess ? Ok() : BadRequest(new { Error = result.Error });
     }
+
+    [Authorize(Roles = AppRoles.Organizer)]
+    [HttpPost("organizer/contributions/{contributionId:guid}/status")]
+    public async Task<IActionResult> UpdateContributionStatus(Guid contributionId, [FromBody] UpdateContributionStatusRequest request, CancellationToken cancellationToken)
+    {
+        var result = await _sponsorManagementService.UpdateContributionStatusAsync(User.GetUserId(), contributionId, request, cancellationToken);
+        return result.IsSuccess ? Ok() : BadRequest(new { Error = result.Error });
+    }
 }

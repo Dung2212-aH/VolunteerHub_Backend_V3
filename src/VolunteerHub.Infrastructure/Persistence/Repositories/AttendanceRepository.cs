@@ -18,6 +18,8 @@ public class AttendanceRepository : IAttendanceRepository
         => await _context.AttendanceRecords.Include(a => a.Event).Where(a => a.VolunteerProfileId == profileId).ToListAsync(cancellationToken);
     public async Task<bool> HasApprovedAttendanceAsync(Guid eventId, Guid profileId, CancellationToken cancellationToken = default)
         => await _context.AttendanceRecords.AnyAsync(a => a.EventId == eventId && a.VolunteerProfileId == profileId && a.Status == AttendanceStatus.Approved, cancellationToken);
+    public async Task<double> GetApprovedHoursForEventAsync(Guid eventId, Guid profileId, CancellationToken cancellationToken = default)
+        => await _context.AttendanceRecords.Where(a => a.EventId == eventId && a.VolunteerProfileId == profileId && a.Status == AttendanceStatus.Approved).SumAsync(a => a.ApprovedHours ?? 0.0, cancellationToken);
     public async Task<double> GetTotalApprovedHoursAsync(Guid profileId, CancellationToken cancellationToken = default)
         => await _context.AttendanceRecords.Where(a => a.VolunteerProfileId == profileId && a.Status == AttendanceStatus.Approved).SumAsync(a => a.ApprovedHours ?? 0.0, cancellationToken);
 }

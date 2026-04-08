@@ -12,6 +12,7 @@ public class CertificateService : ICertificateService
     private readonly IBadgeService _badgeService;
     private readonly IEventRepository _eventRepository;
     private readonly IVolunteerProfileRepository _profileRepository;
+    private readonly IAttendanceRepository _attendanceRepository;
     private readonly INotificationService _notificationService;
     private readonly IUnitOfWork _unitOfWork;
 
@@ -21,6 +22,7 @@ public class CertificateService : ICertificateService
         IBadgeService badgeService,
         IEventRepository eventRepository,
         IVolunteerProfileRepository profileRepository,
+        IAttendanceRepository attendanceRepository,
         INotificationService notificationService,
         IUnitOfWork unitOfWork)
     {
@@ -29,6 +31,7 @@ public class CertificateService : ICertificateService
         _badgeService = badgeService;
         _eventRepository = eventRepository;
         _profileRepository = profileRepository;
+        _attendanceRepository = attendanceRepository;
         _notificationService = notificationService;
         _unitOfWork = unitOfWork;
     }
@@ -60,8 +63,8 @@ public class CertificateService : ICertificateService
             Title = $"Certificate of Participation: {ev!.Title}",
             IssuedAt = DateTime.UtcNow,
             VerificationCode = verificationCode,
-            QrCodeContent = $"/certificate/verify/{verificationCode}",
-            PdfPath = null, // Document generation deferred
+            QrCodeContent = $"certificate/verify/{verificationCode}",
+            PdfPath = $"generated/certificates/{DateTime.UtcNow:yyyy}/{DateTime.UtcNow:MM}/{verificationCode}.pdf",
             Status = CertificateStatus.Active
         };
 
@@ -75,6 +78,12 @@ public class CertificateService : ICertificateService
         var volunteerProfile = await _profileRepository.GetByIdWithDetailsAsync(request.VolunteerProfileId, cancellationToken);
         if (volunteerProfile != null)
         {
+            volunteerProfile.TotalVolunteerHours = (int)Math.Round(
+                await _attendanceRepository.GetTotalApprovedHoursAsync(request.VolunteerProfileId, cancellationToken),
+                MidpointRounding.AwayFromZero);
+            _profileRepository.Update(volunteerProfile);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
             await _notificationService.NotifyCertificateIssuedAsync(
                 volunteerProfile.UserId, ev!.Title, certificate.Id, cancellationToken);
         }
@@ -134,7 +143,9 @@ public class CertificateService : ICertificateService
             VolunteerDisplayName = cert.VolunteerProfile?.FullName ?? "Unknown",
             EventTitle = cert.Event?.Title ?? "Unknown Event",
             IssuedAt = cert.IssuedAt,
-            Status = cert.Status.ToString()
+            Status = cert.Status.ToString(),
+            QrCodeContent = cert.QrCodeContent,
+            PdfPath = cert.PdfPath
         });
     }
 

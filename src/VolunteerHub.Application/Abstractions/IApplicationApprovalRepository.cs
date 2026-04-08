@@ -11,5 +11,6 @@ public interface IApplicationApprovalRepository
     Task<List<EventApplication>> GetMyApplicationsAsync(Guid volunteerProfileId, CancellationToken cancellationToken = default);
     Task<bool> HasActiveApplicationAsync(Guid eventId, Guid volunteerProfileId, CancellationToken cancellationToken = default);
     Task<bool> IsApprovedAsync(Guid eventId, Guid volunteerProfileId, CancellationToken cancellationToken = default);
+    Task<int> GetActiveApplicationsCountAsync(Guid eventId, CancellationToken cancellationToken = default);
     Task<int> GetApprovedApplicationsCountAsync(Guid eventId, CancellationToken cancellationToken = default);
 }

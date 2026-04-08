@@ -14,9 +14,9 @@ public interface IEventApplicationService
 
 public interface IApplicationReviewService
 {
+    Task<Result> StartReviewAsync(Guid organizerId, Guid applicationId, CancellationToken cancellationToken = default);
     Task<Result> ApproveAsync(Guid organizerId, Guid applicationId, CancellationToken cancellationToken = default);
     Task<Result> RejectAsync(Guid organizerId, Guid applicationId, ReviewApplicationRequest request, CancellationToken cancellationToken = default);
-    Task<Result> WaitlistAsync(Guid organizerId, Guid applicationId, CancellationToken cancellationToken = default);
     Task<Result<List<ApplicantSummaryResponse>>> GetEventApplicationsAsync(Guid organizerId, Guid eventId, CancellationToken cancellationToken = default);
     Task<Result<ApplicantSummaryResponse>> GetApplicationDetailsAsync(Guid organizerId, Guid applicationId, CancellationToken cancellationToken = default);
 }

@@ -43,6 +43,7 @@ public class SponsorContributionResponse
     public Guid SponsorProfileId { get; set; }
     public string CompanyName { get; set; } = string.Empty;
     public string Type { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
     public decimal Value { get; set; }
     public string? Description { get; set; }
     public DateTime ContributedAt { get; set; }

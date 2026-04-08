@@ -14,6 +14,7 @@ public class RatingRepository : IRatingRepository
     }
 
     public void Add(Rating rating) => _context.Ratings.Add(rating);
+    public void Update(Rating rating) => _context.Ratings.Update(rating);
 
     public async Task<Rating?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
@@ -45,11 +46,16 @@ public class RatingRepository : IRatingRepository
     public async Task<List<Rating>> GetRatingsForUserAsync(Guid targetUserId, CancellationToken cancellationToken = default)
     {
         return await _context.Ratings
-            .Where(r => r.ToUserId == targetUserId)
+            .Where(r => r.ToUserId == targetUserId && r.Status == Domain.Enums.RatingStatus.Active)
             .ToListAsync(cancellationToken);
     }
 
     public void AddFeedbackReport(FeedbackReport report) => _context.FeedbackReports.Add(report);
+
+    public async Task<FeedbackReport?> GetFeedbackReportByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return await _context.FeedbackReports.FirstOrDefaultAsync(r => r.Id == id, cancellationToken);
+    }
 
     public async Task<List<FeedbackReport>> GetFeedbackByReporterAsync(Guid reporterUserId, CancellationToken cancellationToken = default)
     {

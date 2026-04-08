@@ -84,3 +84,9 @@ public class RecordContributionRequest : IValidatableObject
             yield return new ValidationResult("Value must be non-negative.", new[] { nameof(Value) });
     }
 }
+
+public class UpdateContributionStatusRequest
+{
+    [Required]
+    public string Status { get; set; } = string.Empty;
+}

@@ -38,8 +38,8 @@ public class ApplicationReviewService : IApplicationReviewService
     public Task<Result> RejectAsync(Guid organizerId, Guid applicationId, ReviewApplicationRequest request, CancellationToken cancellationToken = default)
         => ChangeStatusAsync(organizerId, applicationId, ApplicationStatus.Rejected, request.Reason, cancellationToken);
 
-    public Task<Result> WaitlistAsync(Guid organizerId, Guid applicationId, CancellationToken cancellationToken = default)
-        => ChangeStatusAsync(organizerId, applicationId, ApplicationStatus.Waitlisted, null, cancellationToken);
+    public Task<Result> StartReviewAsync(Guid organizerId, Guid applicationId, CancellationToken cancellationToken = default)
+        => ChangeStatusAsync(organizerId, applicationId, ApplicationStatus.UnderReview, null, cancellationToken);
 
     private async Task<Result> ChangeStatusAsync(Guid organizerId, Guid applicationId, ApplicationStatus status, string? reason, CancellationToken cancellationToken)
     {
@@ -47,6 +47,21 @@ public class ApplicationReviewService : IApplicationReviewService
         if (!result.IsSuccess) return Result.Failure(result.Error);
         var app = result.Value.App;
         var ev = result.Value.Event;
+
+        if (status == ApplicationStatus.UnderReview)
+        {
+            if (app.Status != ApplicationStatus.Pending)
+                return Result.Failure(new Error("Application.InvalidStatusTransition", "Only pending applications can move to under review."));
+        }
+        else if (status == ApplicationStatus.Approved || status == ApplicationStatus.Rejected)
+        {
+            if (app.Status != ApplicationStatus.UnderReview)
+                return Result.Failure(new Error("Application.InvalidStatusTransition", "Applications must be under review before a final decision."));
+        }
+        else
+        {
+            return Result.Failure(new Error("Application.InvalidStatus", "Unsupported application status transition."));
+        }
 
         if (status == ApplicationStatus.Approved)
         {

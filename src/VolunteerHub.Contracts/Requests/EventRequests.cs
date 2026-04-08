@@ -75,3 +75,19 @@ public class UpdateEventRequest : IValidatableObject
         }
     }
 }
+
+public class SearchPublishedEventsRequest : IValidatableObject
+{
+    public string? Keyword { get; set; }
+    public DateTime? DateFrom { get; set; }
+    public DateTime? DateTo { get; set; }
+    public string? Location { get; set; }
+
+    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+    {
+        if (DateFrom.HasValue && DateTo.HasValue && DateFrom > DateTo)
+        {
+            yield return new ValidationResult("DateFrom must be earlier than or equal to DateTo.", new[] { nameof(DateFrom), nameof(DateTo) });
+        }
+    }
+}

@@ -28,9 +28,30 @@ public class EventService : IEventService
         return Result.Success(MapToResponse(ev));
     }
 
+    public async Task<Result<EventResponse>> GetPublishedEventAsync(Guid eventId, CancellationToken cancellationToken = default)
+    {
+        var ev = await _eventRepository.GetPublishedByIdAsync(eventId, cancellationToken);
+        if (ev == null)
+            return Result.Failure<EventResponse>(Error.NotFound);
+
+        return Result.Success(MapToResponse(ev));
+    }
+
     public async Task<Result<List<EventResponse>>> GetEventsByOrganizerAsync(Guid organizerId, CancellationToken cancellationToken = default)
     {
         var events = await _eventRepository.GetByOrganizerIdAsync(organizerId, cancellationToken);
+        return Result.Success(events.Select(MapToResponse).ToList());
+    }
+
+    public async Task<Result<List<EventResponse>>> SearchPublishedEventsAsync(SearchPublishedEventsRequest request, CancellationToken cancellationToken = default)
+    {
+        var events = await _eventRepository.SearchPublishedAsync(
+            request.Keyword,
+            request.DateFrom,
+            request.DateTo,
+            request.Location,
+            cancellationToken);
+
         return Result.Success(events.Select(MapToResponse).ToList());
     }
 
@@ -121,6 +142,22 @@ public class EventService : IEventService
             return Result.Failure(new Error("Event.InvalidStatus", "Only Published events can be closed."));
 
         ev.Status = EventStatus.Closed;
+        _eventRepository.Update(ev);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return Result.Success();
+    }
+
+    public async Task<Result> CompleteEventAsync(Guid organizerId, Guid eventId, CancellationToken cancellationToken = default)
+    {
+        var ev = await _eventRepository.GetDetailsByIdAsync(eventId, cancellationToken);
+        if (ev == null || ev.OrganizerId != organizerId)
+            return Result.Failure(Error.NotFound);
+
+        if (ev.Status != EventStatus.Closed)
+            return Result.Failure(new Error("Event.InvalidStatus", "Only Closed events can be completed."));
+
+        ev.Status = EventStatus.Completed;
         _eventRepository.Update(ev);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 

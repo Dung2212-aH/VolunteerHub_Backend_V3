@@ -81,10 +81,10 @@ public class AdminRepository : IAdminRepository
         => await _context.OrganizerProfiles.CountAsync(cancellationToken);
 
     public async Task<int> CountPublishedEventsAsync(CancellationToken cancellationToken = default)
-        => await _context.Events.CountAsync(x => x.Status.ToString() == "Published", cancellationToken);
+        => await _context.Events.CountAsync(x => x.Status == EventStatus.Published, cancellationToken);
 
     public async Task<int> CountCompletedEventsAsync(CancellationToken cancellationToken = default)
-        => await _context.Events.CountAsync(x => x.Status.ToString() == "Completed", cancellationToken);
+        => await _context.Events.CountAsync(x => x.Status == EventStatus.Completed, cancellationToken);
 
     public async Task<int> CountCertificatesIssuedAsync(CancellationToken cancellationToken = default)
         => await _context.Certificates.CountAsync(cancellationToken);
@@ -96,7 +96,7 @@ public class AdminRepository : IAdminRepository
         => await _context.SponsorProfiles.CountAsync(x => x.Status == SponsorProfileStatus.Approved, cancellationToken);
 
     public async Task<int> CountConfirmedDonationsAsync(CancellationToken cancellationToken = default)
-        => await _context.SponsorContributions.CountAsync(cancellationToken);
+        => await _context.SponsorContributions.CountAsync(x => x.Status == SponsorContributionStatus.Confirmed || x.Status == SponsorContributionStatus.Received, cancellationToken);
 
     public async Task<int> CountPendingOrganizerVerificationsAsync(CancellationToken cancellationToken = default)
         => await _context.OrganizerProfiles.CountAsync(x => x.VerificationStatus == OrganizerVerificationStatus.Pending, cancellationToken);

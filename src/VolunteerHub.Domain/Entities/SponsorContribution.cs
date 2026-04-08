@@ -8,6 +8,7 @@ public class SponsorContribution : AuditableEntity
     public Guid SponsorProfileId { get; set; }
 
     public ContributionType Type { get; set; }
+    public SponsorContributionStatus Status { get; set; } = SponsorContributionStatus.Pledged;
 
     /// <summary>Monetary value or estimated value of in-kind contribution (must be >= 0).</summary>
     public decimal Value { get; set; }

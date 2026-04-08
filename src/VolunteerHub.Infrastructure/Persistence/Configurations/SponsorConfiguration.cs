@@ -53,7 +53,9 @@ public class SponsorContributionConfiguration : IEntityTypeConfiguration<Sponsor
         builder.HasKey(x => x.Id);
         builder.HasIndex(x => x.EventSponsorId);
         builder.HasIndex(x => x.SponsorProfileId);
+        builder.HasIndex(x => x.Status);
         builder.Property(x => x.Value).HasPrecision(18, 2);
+        builder.Property(x => x.Status).HasConversion<int>().IsRequired();
         builder.Property(x => x.Description).HasMaxLength(2000);
         builder.Property(x => x.ReceiptReference).HasMaxLength(200);
         builder.Property(x => x.Note).HasMaxLength(1000);

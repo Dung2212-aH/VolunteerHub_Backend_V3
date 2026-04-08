@@ -10,6 +10,7 @@ public interface ISponsorRepository
     Task<List<SponsorProfile>> GetPendingSponsorProfilesAsync(CancellationToken cancellationToken = default);
     Task<Event?> GetEventByIdAsync(Guid eventId, CancellationToken cancellationToken = default);
     Task<EventSponsor?> GetEventSponsorByIdAsync(Guid eventSponsorId, CancellationToken cancellationToken = default);
+    Task<SponsorContribution?> GetContributionByIdAsync(Guid contributionId, CancellationToken cancellationToken = default);
     Task<List<EventSponsor>> GetEventSponsorsBySponsorProfileIdAsync(Guid sponsorProfileId, CancellationToken cancellationToken = default);
     Task<List<EventSponsor>> GetEventSponsorsByEventIdAsync(Guid eventId, CancellationToken cancellationToken = default);
     Task<bool> HasActiveEventSponsorAsync(Guid sponsorProfileId, Guid eventId, CancellationToken cancellationToken = default);
@@ -18,4 +19,5 @@ public interface ISponsorRepository
     void AddEventSponsor(EventSponsor eventSponsor);
     void UpdateEventSponsor(EventSponsor eventSponsor);
     void AddContribution(SponsorContribution contribution);
+    void UpdateContribution(SponsorContribution contribution);
 }

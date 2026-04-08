@@ -5,6 +5,7 @@ namespace VolunteerHub.Domain.Entities;
 
 public class FeedbackReport : BaseEntity
 {
+    public Guid RatingId { get; set; }
     public Guid EventId { get; set; }
     public Guid ReporterUserId { get; set; }
     public Guid TargetUserId { get; set; }

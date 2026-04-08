@@ -13,6 +13,7 @@ public class RatingService : IRatingService
     private readonly IApplicationApprovalRepository _appRepository;
     private readonly IAttendanceRepository _attendanceRepository;
     private readonly IVolunteerProfileRepository _profileRepository;
+    private readonly IAdminAuditService _adminAuditService;
     private readonly IUnitOfWork _unitOfWork;
 
     public RatingService(
@@ -21,6 +22,7 @@ public class RatingService : IRatingService
         IApplicationApprovalRepository appRepository,
         IAttendanceRepository attendanceRepository,
         IVolunteerProfileRepository profileRepository,
+        IAdminAuditService adminAuditService,
         IUnitOfWork unitOfWork)
     {
         _ratingRepository = ratingRepository;
@@ -28,6 +30,7 @@ public class RatingService : IRatingService
         _appRepository = appRepository;
         _attendanceRepository = attendanceRepository;
         _profileRepository = profileRepository;
+        _adminAuditService = adminAuditService;
         _unitOfWork = unitOfWork;
     }
 
@@ -87,7 +90,8 @@ public class RatingService : IRatingService
             FromRole = RatingRole.Volunteer,
             ToRole = RatingRole.Organizer,
             Score = request.Score,
-            Comment = request.Comment
+            Comment = request.Comment,
+            Status = RatingStatus.Active
         };
 
         _ratingRepository.Add(rating);
@@ -152,12 +156,30 @@ public class RatingService : IRatingService
             FromRole = RatingRole.Organizer,
             ToRole = RatingRole.Volunteer,
             Score = request.Score,
-            Comment = request.Comment
+            Comment = request.Comment,
+            Status = RatingStatus.Active
         };
 
         _ratingRepository.Add(rating);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
+        return Result.Success();
+    }
+
+    public async Task<Result> ModerateRatingAsync(Guid adminUserId, Guid ratingId, ModerateRatingRequest request, CancellationToken cancellationToken = default)
+    {
+        var rating = await _ratingRepository.GetByIdAsync(ratingId, cancellationToken);
+        if (rating == null)
+            return Result.Failure(Error.NotFound);
+
+        if (!Enum.TryParse<RatingStatus>(request.Status, true, out var newStatus))
+            return Result.Failure(new Error("Rating.InvalidStatus", "Rating status must be Active, UnderReview, Hidden, or Removed."));
+
+        rating.Status = newStatus;
+        _ratingRepository.Update(rating);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        await _adminAuditService.LogAsync(adminUserId, $"Rating.{newStatus}", nameof(Rating), rating.Id, request.Reason ?? string.Empty, cancellationToken);
         return Result.Success();
     }
 
@@ -204,6 +226,7 @@ public class RatingService : IRatingService
             ToRole = r.ToRole.ToString(),
             Score = r.Score,
             Comment = r.Comment,
+            Status = r.Status.ToString(),
             CreatedAt = r.CreatedAt
         };
     }

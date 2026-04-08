@@ -22,6 +22,8 @@ public class CertificateVerificationResponse
     public string EventTitle { get; set; } = string.Empty;
     public DateTime IssuedAt { get; set; }
     public string Status { get; set; } = string.Empty;
+    public string QrCodeContent { get; set; } = string.Empty;
+    public string? PdfPath { get; set; }
 }
 
 public class BadgeResponse

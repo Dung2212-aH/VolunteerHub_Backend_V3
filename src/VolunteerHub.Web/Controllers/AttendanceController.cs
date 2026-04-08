@@ -65,6 +65,14 @@ public class AttendanceController : ControllerBase
     }
 
     [Authorize(Roles = AppRoles.Organizer)]
+    [HttpPost("events/{eventId:guid}/volunteers/{volunteerProfileId:guid}/approve")]
+    public async Task<IActionResult> ApproveAttendance(Guid eventId, Guid volunteerProfileId, CancellationToken cancellationToken)
+    {
+        var result = await _attendanceService.ApproveAttendanceAsync(User.GetUserId(), eventId, volunteerProfileId, cancellationToken);
+        return result.IsSuccess ? Ok() : BadRequest(result.Error);
+    }
+
+    [Authorize(Roles = AppRoles.Organizer)]
     [HttpPost("events/{eventId:guid}/override")]
     public async Task<IActionResult> ManualOverride(Guid eventId, [FromBody] ManualOverrideRequest request, CancellationToken cancellationToken)
     {

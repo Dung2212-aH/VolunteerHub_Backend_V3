@@ -23,6 +23,9 @@ public class RegisterRequest
 
     [Required]
     public string Role { get; set; } = AppRoles.Volunteer;
+
+    [Url]
+    public string? ConfirmationCallbackUrl { get; set; }
 }
 
 public class LoginRequest
@@ -41,6 +44,43 @@ public class ChangePasswordRequest
 {
     [Required]
     public string CurrentPassword { get; set; } = string.Empty;
+
+    [Required]
+    [StringLength(100, MinimumLength = 8)]
+    public string NewPassword { get; set; } = string.Empty;
+
+    [Required]
+    [Compare(nameof(NewPassword))]
+    public string ConfirmNewPassword { get; set; } = string.Empty;
+}
+
+public class ConfirmEmailRequest
+{
+    [Required]
+    public Guid UserId { get; set; }
+
+    [Required]
+    public string Token { get; set; } = string.Empty;
+}
+
+public class ForgotPasswordRequest
+{
+    [Required]
+    [EmailAddress]
+    public string Email { get; set; } = string.Empty;
+
+    [Url]
+    public string? ResetPasswordCallbackUrl { get; set; }
+}
+
+public class ResetPasswordRequest
+{
+    [Required]
+    [EmailAddress]
+    public string Email { get; set; } = string.Empty;
+
+    [Required]
+    public string Token { get; set; } = string.Empty;
 
     [Required]
     [StringLength(100, MinimumLength = 8)]

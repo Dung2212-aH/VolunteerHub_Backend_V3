@@ -10,5 +10,6 @@ public interface IAttendanceRepository
     Task<List<AttendanceRecord>> GetRecordsByEventAsync(Guid eventId, CancellationToken cancellationToken = default);
     Task<List<AttendanceRecord>> GetRecordsByVolunteerAsync(Guid profileId, CancellationToken cancellationToken = default);
     Task<bool> HasApprovedAttendanceAsync(Guid eventId, Guid profileId, CancellationToken cancellationToken = default);
+    Task<double> GetApprovedHoursForEventAsync(Guid eventId, Guid profileId, CancellationToken cancellationToken = default);
     Task<double> GetTotalApprovedHoursAsync(Guid profileId, CancellationToken cancellationToken = default);
 }

@@ -9,11 +9,15 @@ namespace VolunteerHub.Application.Services;
 public class VolunteerProfileService : IVolunteerProfileService
 {
     private readonly IVolunteerProfileRepository _profileRepository;
+    private readonly IRecognitionRepository _recognitionRepository;
+    private readonly IAttendanceRepository _attendanceRepository;
     private readonly IUnitOfWork _unitOfWork;
 
-    public VolunteerProfileService(IVolunteerProfileRepository profileRepository, IUnitOfWork unitOfWork)
+    public VolunteerProfileService(IVolunteerProfileRepository profileRepository, IRecognitionRepository recognitionRepository, IAttendanceRepository attendanceRepository, IUnitOfWork unitOfWork)
     {
         _profileRepository = profileRepository;
+        _recognitionRepository = recognitionRepository;
+        _attendanceRepository = attendanceRepository;
         _unitOfWork = unitOfWork;
     }
 
@@ -21,7 +25,19 @@ public class VolunteerProfileService : IVolunteerProfileService
     {
         var profile = await _profileRepository.GetByUserIdWithDetailsAsync(userId, cancellationToken);
         if (profile == null) return Result.Failure<VolunteerProfileResponse>(Error.NotFound);
-        return Result.Success(MapToResponse(profile));
+
+        profile.TotalVolunteerHours = (int)Math.Round(await _attendanceRepository.GetTotalApprovedHoursAsync(profile.Id, cancellationToken), MidpointRounding.AwayFromZero);
+        _profileRepository.Update(profile);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        var certificates = await _recognitionRepository.GetMyCertificatesAsync(profile.Id, cancellationToken);
+        var hoursByEvent = new Dictionary<Guid, double>();
+        foreach (var certificate in certificates.Where(c => c.Status == CertificateStatus.Active))
+        {
+            hoursByEvent[certificate.EventId] = await _attendanceRepository.GetApprovedHoursForEventAsync(certificate.EventId, profile.Id, cancellationToken);
+        }
+
+        return Result.Success(MapToResponse(profile, certificates, hoursByEvent));
     }
 
     public async Task<Result> CreateProfileAsync(Guid userId, CreateProfileRequest request, CancellationToken cancellationToken = default)
@@ -80,7 +96,7 @@ public class VolunteerProfileService : IVolunteerProfileService
         }
     }
 
-    private static VolunteerProfileResponse MapToResponse(VolunteerProfile profile)
+    private static VolunteerProfileResponse MapToResponse(VolunteerProfile profile, List<Certificate> certificates, Dictionary<Guid, double> hoursByEvent)
     {
         return new VolunteerProfileResponse
         {
@@ -98,7 +114,20 @@ public class VolunteerProfileService : IVolunteerProfileService
             IsProfileComplete = !string.IsNullOrWhiteSpace(profile.FullName) && !string.IsNullOrWhiteSpace(profile.Phone) && !string.IsNullOrWhiteSpace(profile.Address) && profile.Skills.Any(),
             Skills = profile.Skills.Select(s => s.Name).ToList(),
             LanguagesText = profile.LanguagesText,
-            InterestsText = profile.InterestsText
+            InterestsText = profile.InterestsText,
+            CompletedParticipations = certificates
+                .Where(c => c.Status == CertificateStatus.Active)
+                .OrderByDescending(c => c.IssuedAt)
+                .Select(c => new CompletedParticipationHistoryResponse
+                {
+                    EventId = c.EventId,
+                    EventTitle = c.Event?.Title ?? string.Empty,
+                    CompletedAt = c.IssuedAt,
+                    HoursEarned = hoursByEvent.GetValueOrDefault(c.EventId, 0),
+                    CertificateId = c.Id,
+                    CertificateNumber = c.CertificateNumber
+                })
+                .ToList()
         };
     }
 }

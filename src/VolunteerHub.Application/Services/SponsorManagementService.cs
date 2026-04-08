@@ -22,7 +22,7 @@ public class SponsorManagementService : ISponsorManagementService
     public async Task<Result<List<SponsorProfileResponse>>> GetPendingSponsorProfilesAsync(CancellationToken cancellationToken = default)
         => Result.Success((await _sponsorRepository.GetPendingSponsorProfilesAsync(cancellationToken)).Select(p => new SponsorProfileResponse { Id = p.Id, UserId = p.UserId, CompanyName = p.CompanyName, Description = p.Description, LogoUrl = p.LogoUrl, WebsiteUrl = p.WebsiteUrl, Email = p.Email, Phone = p.Phone, Address = p.Address, TaxCode = p.TaxCode, ContactPersonName = p.ContactPersonName, ContactPersonEmail = p.ContactPersonEmail, ContactPersonPhone = p.ContactPersonPhone, ContactPersonRole = p.ContactPersonRole, Status = p.Status.ToString(), RejectionReason = p.RejectionReason }).ToList());
 
-    public async Task<Result> ReviewSponsorProfileAsync(Guid sponsorProfileId, ApproveSponsorProfileRequest request, CancellationToken cancellationToken = default)
+    public async Task<Result> ReviewSponsorProfileAsync(Guid adminUserId, Guid sponsorProfileId, ApproveSponsorProfileRequest request, CancellationToken cancellationToken = default)
     {
         var profile = await _sponsorRepository.GetSponsorProfileByIdAsync(sponsorProfileId, cancellationToken);
         if (profile == null) return Result.Failure(Error.NotFound);
@@ -30,7 +30,7 @@ public class SponsorManagementService : ISponsorManagementService
         profile.RejectionReason = request.Approve ? null : request.Reason;
         _sponsorRepository.UpdateSponsorProfile(profile);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
-        await _adminAuditService.LogAsync(Guid.Empty, request.Approve ? "SponsorProfile.Approved" : "SponsorProfile.Rejected", nameof(SponsorProfile), profile.Id, request.Reason ?? string.Empty, cancellationToken);
+        await _adminAuditService.LogAsync(adminUserId, request.Approve ? "SponsorProfile.Approved" : "SponsorProfile.Rejected", nameof(SponsorProfile), profile.Id, request.Reason ?? string.Empty, cancellationToken);
         return Result.Success();
     }
 
@@ -59,8 +59,40 @@ public class SponsorManagementService : ISponsorManagementService
         if (eventSponsor == null || eventSponsor.Event.OrganizerId != organizerUserId) return Result.Failure(Error.NotFound);
         if (eventSponsor.Status != EventSponsorStatus.Approved) return Result.Failure(new Error("Sponsor.InvalidSponsorStatus", "Only approved sponsors can have contributions recorded."));
         if (!Enum.TryParse<ContributionType>(request.Type, true, out var contributionType)) return Result.Failure(new Error("Sponsor.InvalidContributionType", "Contribution type must be Monetary or InKind."));
-        _sponsorRepository.AddContribution(new SponsorContribution { EventSponsorId = eventSponsor.Id, SponsorProfileId = eventSponsor.SponsorProfileId, Type = contributionType, Value = request.Value, Description = request.Description, ContributedAt = request.ContributedAt ?? DateTime.UtcNow, ReceiptReference = request.ReceiptReference, Note = request.Note });
+        _sponsorRepository.AddContribution(new SponsorContribution { EventSponsorId = eventSponsor.Id, SponsorProfileId = eventSponsor.SponsorProfileId, Type = contributionType, Status = SponsorContributionStatus.Pledged, Value = request.Value, Description = request.Description, ContributedAt = request.ContributedAt ?? DateTime.UtcNow, ReceiptReference = request.ReceiptReference, Note = request.Note });
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         return Result.Success();
+    }
+
+    public async Task<Result> UpdateContributionStatusAsync(Guid organizerUserId, Guid contributionId, UpdateContributionStatusRequest request, CancellationToken cancellationToken = default)
+    {
+        var contribution = await _sponsorRepository.GetContributionByIdAsync(contributionId, cancellationToken);
+        if (contribution == null || contribution.EventSponsor.Event.OrganizerId != organizerUserId) return Result.Failure(Error.NotFound);
+
+        if (!Enum.TryParse<SponsorContributionStatus>(request.Status, true, out var newStatus))
+            return Result.Failure(new Error("Sponsor.InvalidContributionStatus", "Contribution status must be Pledged, Confirmed, Received, Cancelled, or Rejected."));
+
+        if (!IsValidStatusTransition(contribution.Status, newStatus))
+            return Result.Failure(new Error("Sponsor.InvalidContributionTransition", "Invalid contribution status transition."));
+
+        contribution.Status = newStatus;
+        _sponsorRepository.UpdateContribution(contribution);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        return Result.Success();
+    }
+
+    private static bool IsValidStatusTransition(SponsorContributionStatus currentStatus, SponsorContributionStatus newStatus)
+    {
+        if (currentStatus == newStatus) return true;
+
+        return currentStatus switch
+        {
+            SponsorContributionStatus.Pledged => newStatus is SponsorContributionStatus.Confirmed or SponsorContributionStatus.Cancelled or SponsorContributionStatus.Rejected,
+            SponsorContributionStatus.Confirmed => newStatus is SponsorContributionStatus.Received or SponsorContributionStatus.Cancelled,
+            SponsorContributionStatus.Received => false,
+            SponsorContributionStatus.Cancelled => false,
+            SponsorContributionStatus.Rejected => false,
+            _ => false
+        };
     }
 }

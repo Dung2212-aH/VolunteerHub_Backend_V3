@@ -12,5 +12,6 @@ public class Rating : BaseEntity
     public RatingRole ToRole { get; set; }
     public int Score { get; set; }
     public string? Comment { get; set; }
+    public RatingStatus Status { get; set; } = RatingStatus.Active;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

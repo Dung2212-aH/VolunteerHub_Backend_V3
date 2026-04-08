@@ -28,6 +28,7 @@ public class ComplaintModerationService : IComplaintModerationService
         var response = reports.Select(r => new AdminFeedbackReportResponse
         {
             Id = r.Id,
+            RatingId = r.RatingId,
             EventId = r.EventId,
             ReporterUserId = r.ReporterUserId,
             TargetUserId = r.TargetUserId,

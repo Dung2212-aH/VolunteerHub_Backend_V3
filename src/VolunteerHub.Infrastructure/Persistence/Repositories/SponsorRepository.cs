@@ -20,6 +20,8 @@ public class SponsorRepository : ISponsorRepository
         => await _context.Events.Include(x => x.EventSponsors).FirstOrDefaultAsync(x => x.Id == eventId, cancellationToken);
     public async Task<EventSponsor?> GetEventSponsorByIdAsync(Guid eventSponsorId, CancellationToken cancellationToken = default)
         => await _context.EventSponsors.Include(x => x.SponsorProfile).Include(x => x.Event).Include(x => x.Contributions).FirstOrDefaultAsync(x => x.Id == eventSponsorId, cancellationToken);
+    public async Task<SponsorContribution?> GetContributionByIdAsync(Guid contributionId, CancellationToken cancellationToken = default)
+        => await _context.SponsorContributions.Include(x => x.EventSponsor).ThenInclude(x => x.Event).FirstOrDefaultAsync(x => x.Id == contributionId, cancellationToken);
     public async Task<List<EventSponsor>> GetEventSponsorsBySponsorProfileIdAsync(Guid sponsorProfileId, CancellationToken cancellationToken = default)
         => await _context.EventSponsors.Include(x => x.SponsorProfile).Include(x => x.Event).Where(x => x.SponsorProfileId == sponsorProfileId).OrderByDescending(x => x.CreatedAt).ToListAsync(cancellationToken);
     public async Task<List<EventSponsor>> GetEventSponsorsByEventIdAsync(Guid eventId, CancellationToken cancellationToken = default)
@@ -31,4 +33,5 @@ public class SponsorRepository : ISponsorRepository
     public void AddEventSponsor(EventSponsor eventSponsor) => _context.EventSponsors.Add(eventSponsor);
     public void UpdateEventSponsor(EventSponsor eventSponsor) => _context.EventSponsors.Update(eventSponsor);
     public void AddContribution(SponsorContribution contribution) => _context.SponsorContributions.Add(contribution);
+    public void UpdateContribution(SponsorContribution contribution) => _context.SponsorContributions.Update(contribution);
 }

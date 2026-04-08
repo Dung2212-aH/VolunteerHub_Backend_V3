@@ -17,4 +17,15 @@ public class VolunteerProfileResponse
     public List<string> Skills { get; set; } = new();
     public string? LanguagesText { get; set; }
     public string? InterestsText { get; set; }
+    public List<CompletedParticipationHistoryResponse> CompletedParticipations { get; set; } = new();
+}
+
+public class CompletedParticipationHistoryResponse
+{
+    public Guid EventId { get; set; }
+    public string EventTitle { get; set; } = string.Empty;
+    public DateTime CompletedAt { get; set; }
+    public double HoursEarned { get; set; }
+    public Guid? CertificateId { get; set; }
+    public string? CertificateNumber { get; set; }
 }

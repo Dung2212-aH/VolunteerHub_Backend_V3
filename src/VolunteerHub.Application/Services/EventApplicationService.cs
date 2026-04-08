@@ -27,6 +27,17 @@ public class EventApplicationService : IEventApplicationService
     {
         var ev = await _eventRepository.GetDetailsByIdAsync(request.EventId, cancellationToken);
         if (ev == null) return Result.Failure(Error.NotFound);
+
+        if (ev.Status != EventStatus.Published)
+            return Result.Failure(new Error("Application.EventNotOpen", "Applications are only allowed for published events."));
+
+        if (DateTime.UtcNow >= ev.StartAt)
+            return Result.Failure(new Error("Application.DeadlinePassed", "The registration deadline for this event has passed."));
+
+        var activeCount = await _appRepository.GetActiveApplicationsCountAsync(request.EventId, cancellationToken);
+        if (activeCount >= ev.Capacity)
+            return Result.Failure(new Error("Application.CapacityExceeded", "The event is already at full capacity."));
+
         if (await _appRepository.HasActiveApplicationAsync(request.EventId, volunteerProfileId, cancellationToken))
             return Result.Failure(new Error("Application.Duplicate", "You already have an active application for this event."));
 
@@ -52,7 +63,7 @@ public class EventApplicationService : IEventApplicationService
     {
         var application = await _appRepository.GetApplicationByIdAsync(applicationId, cancellationToken);
         if (application == null || application.VolunteerProfileId != volunteerProfileId) return Result.Failure(Error.NotFound);
-        if (application.Status != ApplicationStatus.Pending && application.Status != ApplicationStatus.Waitlisted && application.Status != ApplicationStatus.UnderReview)
+        if (application.Status != ApplicationStatus.Pending && application.Status != ApplicationStatus.UnderReview)
             return Result.Failure(new Error("Application.CannotWithdraw", "This application can no longer be withdrawn."));
         application.Status = ApplicationStatus.Cancelled;
         application.WithdrawnAt = DateTime.UtcNow;
