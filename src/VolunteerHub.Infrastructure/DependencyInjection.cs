@@ -1,10 +1,13 @@
-using Microsoft.AspNetCore.Authentication.Cookies;
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.IdentityModel.Tokens;
 using VolunteerHub.Application.Abstractions;
+using VolunteerHub.Infrastructure.Authentication;
 using VolunteerHub.Infrastructure.Identity;
 using VolunteerHub.Infrastructure.Persistence;
 using VolunteerHub.Infrastructure.Persistence.Repositories;
@@ -29,22 +32,40 @@ public static class DependencyInjection
             options.SignIn.RequireConfirmedEmail = true;
         }).AddEntityFrameworkStores<AppDbContext>().AddDefaultTokenProviders();
 
-        services.ConfigureApplicationCookie(options =>
+        var jwtSection = configuration.GetSection(JwtOptions.SectionName);
+        services.Configure<JwtOptions>(jwtSection);
+
+        var jwtOptions = jwtSection.Get<JwtOptions>() ?? new JwtOptions();
+        if (string.IsNullOrWhiteSpace(jwtOptions.Issuer) ||
+            string.IsNullOrWhiteSpace(jwtOptions.Audience) ||
+            string.IsNullOrWhiteSpace(jwtOptions.SecretKey))
         {
-            options.Events = new CookieAuthenticationEvents
+            throw new InvalidOperationException("JWT configuration is missing. Set Jwt:Issuer, Jwt:Audience, and Jwt:SecretKey.");
+        }
+
+        services
+            .AddAuthentication(options =>
             {
-                OnRedirectToLogin = context =>
+                options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+                options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+                options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
+            })
+            .AddJwtBearer(options =>
+            {
+                options.RequireHttpsMetadata = false;
+                options.SaveToken = true;
+                options.TokenValidationParameters = new TokenValidationParameters
                 {
-                    if (context.Request.Path.StartsWithSegments("/api")) { context.Response.StatusCode = StatusCodes.Status401Unauthorized; return Task.CompletedTask; }
-                    context.Response.Redirect(context.RedirectUri); return Task.CompletedTask;
-                },
-                OnRedirectToAccessDenied = context =>
-                {
-                    if (context.Request.Path.StartsWithSegments("/api")) { context.Response.StatusCode = StatusCodes.Status403Forbidden; return Task.CompletedTask; }
-                    context.Response.Redirect(context.RedirectUri); return Task.CompletedTask;
-                }
-            };
-        });
+                    ValidateIssuer = true,
+                    ValidateAudience = true,
+                    ValidateLifetime = true,
+                    ValidateIssuerSigningKey = true,
+                    ValidIssuer = jwtOptions.Issuer,
+                    ValidAudience = jwtOptions.Audience,
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SecretKey)),
+                    ClockSkew = TimeSpan.Zero
+                };
+            });
 
         services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
         services.AddScoped<IUnitOfWork, UnitOfWork>();
@@ -80,6 +101,7 @@ public static class DependencyInjection
         services.AddScoped<ISkillCatalogService, VolunteerHub.Application.Services.SkillCatalogService>();
         services.AddScoped<IComplaintModerationService, VolunteerHub.Application.Services.ComplaintModerationService>();
         services.AddScoped<IImpactReportService, VolunteerHub.Application.Services.ImpactReportService>();
+        services.AddScoped<JwtTokenGenerator>();
         return services;
     }
 }

@@ -4,6 +4,7 @@ using System.Security.Claims;
 using VolunteerHub.Application.Abstractions;
 using VolunteerHub.Contracts.Constants;
 using VolunteerHub.Contracts.Requests;
+using VolunteerHub.Contracts.Responses;
 
 namespace VolunteerHub.Web.Controllers;
 
@@ -68,14 +69,14 @@ public class AccountController : ControllerBase
 
     [AllowAnonymous]
     [HttpPost("login")]
-    public async Task<IActionResult> Login([FromBody] LoginRequest request, CancellationToken cancellationToken)
+    public async Task<ActionResult<LoginResponse>> Login([FromBody] LoginRequest request, CancellationToken cancellationToken)
     {
         var result = await _accountService.LoginAsync(request, cancellationToken);
 
         if (!result.IsSuccess)
             return BadRequest(new { Error = result.Error });
 
-        return Ok(new { Message = "Login successfully." });
+        return Ok(result.Value);
     }
 
     [Authorize]

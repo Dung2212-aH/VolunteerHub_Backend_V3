@@ -1,9 +1,11 @@
 using Microsoft.AspNetCore.Identity;
 using VolunteerHub.Application.Abstractions;
 using VolunteerHub.Application.Common;
+using VolunteerHub.Contracts.Responses;
 using VolunteerHub.Contracts.Constants;
 using VolunteerHub.Contracts.Requests;
 using VolunteerHub.Domain.Entities;
+using VolunteerHub.Infrastructure.Authentication;
 
 namespace VolunteerHub.Infrastructure.Identity;
 
@@ -17,6 +19,7 @@ public class AccountService : IAccountService
     private readonly ISponsorRepository _sponsorRepository;
     private readonly IAdminAuditService _adminAuditService;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly JwtTokenGenerator _jwtTokenGenerator;
 
     public AccountService(
         UserManager<ApplicationUser> userManager,
@@ -26,7 +29,8 @@ public class AccountService : IAccountService
         IOrganizerRepository organizerRepository,
         ISponsorRepository sponsorRepository,
         IAdminAuditService adminAuditService,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        JwtTokenGenerator jwtTokenGenerator)
     {
         _userManager = userManager;
         _signInManager = signInManager;
@@ -36,6 +40,7 @@ public class AccountService : IAccountService
         _sponsorRepository = sponsorRepository;
         _adminAuditService = adminAuditService;
         _unitOfWork = unitOfWork;
+        _jwtTokenGenerator = jwtTokenGenerator;
     }
 
     public async Task<Result> RegisterAsync(RegisterRequest request, CancellationToken cancellationToken = default)
@@ -163,33 +168,35 @@ public class AccountService : IAccountService
         return Result.Success();
     }
 
-    public async Task<Result> LoginAsync(LoginRequest request, CancellationToken cancellationToken = default)
+    public async Task<Result<LoginResponse>> LoginAsync(LoginRequest request, CancellationToken cancellationToken = default)
     {
         var user = await _userManager.FindByEmailAsync(request.Email);
         if (user == null)
-            return Result.Failure(Error.InvalidCredentials);
+            return Result.Failure<LoginResponse>(Error.InvalidCredentials);
 
         if (!user.IsActive)
-            return Result.Failure(new Error("Auth.UserInactive", "This account has been disabled."));
+            return Result.Failure<LoginResponse>(new Error("Auth.UserInactive", "This account has been disabled."));
 
-        var result = await _signInManager.PasswordSignInAsync(
-            request.Email, 
-            request.Password, 
-            request.RememberMe, 
+        var result = await _signInManager.CheckPasswordSignInAsync(
+            user,
+            request.Password,
             lockoutOnFailure: true);
 
         if (result.IsLockedOut)
-            return Result.Failure(new Error("Auth.UserLocked", "This account is locked."));
+            return Result.Failure<LoginResponse>(new Error("Auth.UserLocked", "This account is locked."));
 
         if (result.IsNotAllowed)
-            return Result.Failure(new Error("Auth.EmailNotConfirmed", "Email confirmation is required before logging in."));
+            return Result.Failure<LoginResponse>(new Error("Auth.EmailNotConfirmed", "Email confirmation is required before logging in."));
 
         if (!result.Succeeded)
         {
-            return Result.Failure(Error.InvalidCredentials);
+            return Result.Failure<LoginResponse>(Error.InvalidCredentials);
         }
 
-        return Result.Success();
+        var roles = await _userManager.GetRolesAsync(user);
+        var response = _jwtTokenGenerator.Generate(user, roles.ToList());
+
+        return Result.Success(response);
     }
 
     public async Task<Result> LogoutAsync(CancellationToken cancellationToken = default)
